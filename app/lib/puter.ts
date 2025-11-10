@@ -289,7 +289,15 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-        return puter.fs.read(path);
+        try {
+            const res = await puter.fs.read(path);
+            console.debug('[puter] readFile', path, res);
+            return res;
+        } catch (err) {
+            console.error('[puter] readFile error', path, err);
+            setError(err instanceof Error ? err.message : 'Failed to read file');
+            return;
+        }
     };
 
     const upload = async (files: File[] | Blob[]) => {
@@ -298,7 +306,16 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-        return puter.fs.upload(files);
+        try {
+            console.debug('[puter] upload called with files:', files);
+            const res = await puter.fs.upload(files);
+            console.debug('[puter] upload result:', res);
+            return res;
+        } catch (err) {
+            console.error('[puter] upload error', err);
+            setError(err instanceof Error ? err.message : 'Upload failed');
+            return;
+        }
     };
 
     const deleteFile = async (path: string) => {
@@ -333,25 +350,33 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-
-        return puter.ai.chat(
-            [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "file",
-                            puter_path: path,
-                        },
-                        {
-                            type: "text",
-                            text: message,
-                        },
-                    ],
-                },
-            ],
-            { model: "claude-3-7-sonnet" }
-        ) as Promise<AIResponse | undefined>;
+        try {
+            console.debug('[puter] feedback called', { path, message });
+            const res = await puter.ai.chat(
+                [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "file",
+                                puter_path: path,
+                            },
+                            {
+                                type: "text",
+                                text: message,
+                            },
+                        ],
+                    },
+                ],
+                { model: "claude-3-7-sonnet" }
+            );
+            console.debug('[puter] feedback result', res);
+            return res as Promise<AIResponse | undefined>;
+        } catch (err) {
+            console.error('[puter] feedback error', err);
+            setError(err instanceof Error ? err.message : 'Feedback failed');
+            return;
+        }
     };
 
     const img2txt = async (image: string | File | Blob, testMode?: boolean) => {
@@ -360,7 +385,16 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             setError("Puter.js not available");
             return;
         }
-        return puter.ai.img2txt(image, testMode);
+        try {
+            console.debug('[puter] img2txt called', image);
+            const res = await puter.ai.img2txt(image, testMode);
+            console.debug('[puter] img2txt result', res);
+            return res;
+        } catch (err) {
+            console.error('[puter] img2txt error', err);
+            setError(err instanceof Error ? err.message : 'img2txt failed');
+            return;
+        }
     };
 
     const getKV = async (key: string) => {

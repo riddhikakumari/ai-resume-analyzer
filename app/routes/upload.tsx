@@ -4,16 +4,19 @@ import FileUploader from '~/components/FileUploader';
 import Navbar from "~/components/Navbar"
 import { convertPdfToImage } from '~/lib/pdf2img';
 import { usePuterStore } from '~/lib/puter';
-import { generateUUID } from '~/lib/utils';
+import { generateUUID, formatSize } from '~/lib/utils';
 import { prepareInstructions } from './constants';
 const Upload = () => { 
     const { auth, isLoading, fs, ai,kv } = usePuterStore();
     const navigate = useNavigate();
-    const [isProcessing, setIsProcessing] = useState(true);
+    // Start with not-processing so the upload form is visible by default
+    const [isProcessing, setIsProcessing] = useState(false);
     const [statusText, setStatusText] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const handleFileSelect = (file: File | null) => {
         setFile(file)
+        // Debug: log selection in parent to verify updates
+        console.debug('[Upload] handleFileSelect:', file ? { name: file.name, size: file.size } : null);
     }
 
     const handleAnalyze = async ({ companyName, jobTitle, jobDescription, file }: { companyName: string, jobTitle: string, jobDescription: string, file: File }) => {
@@ -23,9 +26,21 @@ const Upload = () => {
 
          if(!uploadedFile) return setStatusText('Error: Failed to upload file');
 
-         setStatusText('Converting to image...');
-         const imageFile = await convertPdfToImage(file);
-         if(!imageFile.file) return setStatusText('Error: Failed to convert PDF to image');
+        setStatusText('Converting to image...');
+        let imageFile;
+        try {
+            console.debug('[Upload] convertPdfToImage starting for file:', file.name);
+            imageFile = await convertPdfToImage(file);
+            console.debug('[Upload] convertPdfToImage result:', imageFile);
+        } catch (err) {
+            console.error('[Upload] convertPdfToImage threw', err);
+            return setStatusText('Error: Failed to convert PDF to image: ' + (err instanceof Error ? err.message : String(err)));
+        }
+
+        if (!imageFile || !imageFile.file) {
+            const msg = imageFile && imageFile.error ? imageFile.error : 'Unknown conversion error';
+            return setStatusText('Error: Failed to convert PDF to image: ' + msg);
+        }
             
             setStatusText('Uploading the image...');
             const uploadedImage = await fs.upload([imageFile.file]);
@@ -113,10 +128,27 @@ const Upload = () => {
                             <div className="form-div">
                                 <label htmlFor="uploader">Upload Resume</label>
                                 <FileUploader onFileSelect={handleFileSelect}/>
+
+                                {file && (
+                                    <div className="mt-2 flex items-center justify-between">
+                                        <p className="text-sm text-gray-700 truncate max-w-xs">
+                                            Selected file: <span className="font-medium">{file.name}</span>
+                                            <span className="text-xs text-gray-500"> — {formatSize(file.size)}</span>
+                                        </p>
+                                        <button type="button" className="text-sm text-red-600 ml-4" onClick={() => setFile(null)}>
+                                            Remove
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Announce selection changes for screen readers */}
+                                <div aria-live="polite" className="sr-only">
+                                    {file ? `Selected file ${file.name}` : 'No file selected'}
+                                </div>
                             </div>
 
-                            <button className="primary-button" type="submit">
-                                Analyze Resume
+                            <button className="primary-button" type="submit" disabled={!file}>
+                                {file ? 'Analyze Resume' : 'Select a resume to analyze'}
                             </button>
                         </form>
                     )}

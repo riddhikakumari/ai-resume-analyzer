@@ -9,6 +9,9 @@ interface FileUploaderProps {
 const FileUploader = ({ onFileSelect }: FileUploaderProps) => {
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const file = acceptedFiles[0] || null;
+        // Debug: log file selection for tracing
+        console.debug('[FileUploader] onDrop acceptedFiles:', acceptedFiles);
+        if (file) console.debug('[FileUploader] selected file:', file.name, file.size);
 
         onFileSelect?.(file);
     }, [onFileSelect]);
@@ -46,6 +49,8 @@ const FileUploader = ({ onFileSelect }: FileUploaderProps) => {
                                 </div>
                             </div>
                             <button className="p-2 cursor-pointer" onClick={(e) => {
+                                e.stopPropagation();
+                                console.debug('[FileUploader] remove selected file');
                                 onFileSelect?.(null)
                             }}>
                                 <img src="/icons/cross.svg" alt="remove" className="w-4 h-4" />
